@@ -140,6 +140,49 @@ select和poll的使用有较大的局限性，无法满足并发量特别高的�
 
 
 
+## 《Netty权威指南》基础篇及线程模型学习笔记
+
+### I/O多路复用
+
+上面介绍了五种Linux的IO模式，但由于Java的NIO的核心类库多路复用器Selector就是基于epoll的多路复用技术实现，因此这里重点关注它。
+
+I/O多路复用把多个IO的阻塞服用到同一个select的阻塞上，使得单线程情况下可以同时处理多个客户端的请求。
+
+支持I/O多路服用的系统调用有select\pselect\poll\epoll等，Linux很长一段时间使用select做轮询，但其固有的缺陷导致其有很大限制，最终Linux使用epoll替代了select，在性能上有了很大的提升。
+
+### Java IO发展历史
+
+- JDK 1.0 - JDK1.3 Java都只有BIO，很多Unix的概念或接口在其库中都没有体现。
+- 2002年发布JDK 1.4，增加java.nio包，主要引入了支持异步操作的各种核心类库：管道、缓冲区、Channel、Selector等。
+- 2011年发布JDK 1.7，对原来的NIO包进行了升级，称为NIO2.0，主要提供了AIO功能。
+
+### 使用Netty的理由
+
+尽管Java已经提供了NIO类库，但实际的网络编程环境非常复杂，要开发出一个稳定可用的网络程序使用NIO的周期将会非常长，而Netty封装了各种IO实现，提供简单的API，工作稳定，适用于各种场景。
+
+### Netty的线程模型
+
+通过不同的配置，Netty能够支持Reactor单线程模式、Reactor多线程模式、主从Reactor多线程模式
+
+这里暂时没有必要去纠结单线程还是多线程，只需要关心Reactor模式。在Netty中，它正是基于NIO的多路复用实现的。
+
+Netty的核心NioEventLoop就是基于NIO的多路复用实现的，除了NIO外，它还兼顾处理两个任务
+
+- 用户通过NioEventLoop.execute方法注册的事件放在消息队列中，由I/O线程执行
+- 用户通过NioEventLoop.schedule方法注册的定时任务
+
+他们的实现原理就是在一个死循环内反复轮询Selector、消息队列、定时任务
+
+### JDK的epoll bug
+
+原本select()方法应该是阻塞的，但JDK的select()方法在一些情况下会在没有事件时返回。造成在死循环中空转，使得CPU达到100%的情况。该bug到2013年才修复
+
+Netty中的解决方式是在短时间内检测到超过一定数量的select()调用，就判定为空转。通过创建新的Selector并将原Selector中的Channel注册到新的Selector达到消除这个问题的目的。
+
+### 总结
+
+Netty基于NIO构建了自己的EventLoop。
+
 ## Java的IO
 
 Java的IO有三种
@@ -195,6 +238,22 @@ NIO并没有完全屏蔽平台差异，它仍然是基于各个操作系统的I/
 
 推荐大家使用成熟的NIO框架，如Netty，MINA等。解决了很多NIO的陷阱，并屏蔽了操作系统的差异，有较好的性能和编程模型。
 
+## EventLoop
+
+Event Loop是一个程序结构，用于等待和发送消息和事件。
+
+其实，简单地理解EventLoop，就是一个反复定时轮询检查事件队列，并在事件发生时将事件分发到对应的handler中的一个工具。也算是一种编程模型。
+
+维基百科对EventLoop的讲解可以说是非常清楚的：
+
+事件循环是一种等待和分发程序中事件或消息的编程结构或设计模式。实际工作上，它通过向事件提供程序（如消息队列、NIO的Selector）发出请求以获取事件，然后调用对应的事件处理程序进行工作。因此它有时也被称为消息分发程序。
+
+事件循环可以和Reactor模式相结合，这就是我们常用的NIO编程。
+
+从原理上说，我们可以自己提供事件消息队列，但一般来说这个消息队列是由对应的运行环境(操作系统)提供的，比如Java的NIO，这样可以将I/O放到系统中进行，避免阻塞工作线程。
+
+事件循环是基于消息传输的系统的典型技术特征。
+
 # 需要搞清楚的问题
 
 1. Java中各种IO的概念：BIO、NIO、AIO （完成）
@@ -204,6 +263,7 @@ NIO并没有完全屏蔽平台差异，它仍然是基于各个操作系统的I/
 5. EventLoop、Actor、Reactor和Java的IO模型有什么关系
 6. Netty中如何对应了Java的NIO模型
 7. Vertx的异步模型如何对应Java的NIO模型
+8. Java的IO演进之路和Linux的各种IO发布时间对比
 
 # 参考资料
 1. 《Linux程序设计》
@@ -211,5 +271,6 @@ NIO并没有完全屏蔽平台差异，它仍然是基于各个操作系统的I/
 3. 《Java NIO BIO AIO简单总结》(https://github.com/Snailclimb/JavaGuide/blob/master/docs/java/BIO-NIO-AIO.md#1-bio-blocking-io)
 4. 《Java并发编程实战》
 5. 《Java网络编程》- 第六章
-
+6. 《Netty权威指南》- 基础篇(1、2、18章)
 6. https://zhuanlan.zhihu.com/p/23488863
+8. 《什么是EventLoop - 阮一峰》(https://www.ruanyifeng.com/blog/2013/10/event_loop.html)
