@@ -254,15 +254,76 @@ Event Loop是一个程序结构，用于等待和发送消息和事件。
 
 事件循环是基于消息传输的系统的典型技术特征。
 
+## Reactor Proactor Actor
+
+### Reactor
+
+根据维基百科描述，Reactor是一种设计模式，是一种事件处理模式。
+
+它要求存在一个处理结构，接收并发的多个输入请求，并将这些请求同步分发到关联的请求处理handler的情况。
+
+一个反应器的基本结构如下
+
+- 资源
+
+  可以是向系统发送消息的请求、也可以是从系统获取消息的请求
+
+- 同步的事件复用器。
+
+  用一个EventLoop阻塞地等待所有资源（即请求），比如I/O多路复用模型中的epoll，当资源准备好时EventLoop将资源发送给调度器
+
+- Dispatcher分发器
+
+  用于管理请求处理器的注册和注销。同时将从复用器中得到的资源分发给对应的请求处理器
+
+- 请求处理器
+
+  定义了资源的处理逻辑
+
+所有的Reacto系统在定义上将都是单线程的，但改良后的可以是多线程的，比如Netty中就对Reactor进行了多线程改进，使得能够发挥最大性能。
+
+实际实现中的Reactor模型常常被用来解决IO并发问题，最常见的就是I/O多路复用。死循环阻塞等待select()就是EventLoop，有事件时调用对应于分发器。
+
+在I/O上，这样能够提高I/O高并发的效率；在编程模型上，它将事件的处理逻辑完全分开。
+
+当然，Reactor并不是只能用于I/O，就像Netty在EventLoop加入用户自定义的task和定时task、Vertx基于EventLoop构建自己的神经系统一样，它也可以用来处理事件请求和处理分离的模式，在运行效率和编程效率上都有所提升。
+
+### Proactor
+
+Proactor也是用于事件处理的设计模式，它可以被看做是同步的Reactor模式的变体。它将需要长时间运行的操作异步执行，在执行完后调用对应的处理器进行结果处理即可。
+
+模型上的结构如下和工作流程如下
+
+![Proactor.VSD_SequenceDiagram.png (577×325)](https://upload.wikimedia.org/wikipedia/commons/6/61/Proactor.VSD_SequenceDiagram.png)
+
+在实际应用中，模型中的Asynchronous Operation Processor、Asynchronous Operation、Completion Dispatcher一般依赖于操作系统完成，我们负责发起异步调用和注册完成处理函数。比如LInux的异步IO模型。我们能做的只是发起I/O请求、指明数据要存放的位置、注册处理函数，待系统异步处理完I/O请求后，调用注册的处理函数。
+
+### Actor
+
+
+
+## VertxEventLoop和EventBus
+
+
+
 # 需要搞清楚的问题
 
 1. Java中各种IO的概念：BIO、NIO、AIO （完成）
+
 2. Linux中的五种IO模型 （完成）
+
 3. Java的IO模型和Linux、Windows中的IO模型是如何对应的 （完成）
+
 4. EventLoop、Actor、Reactor基本概念；还有其它类似的概念吗？
+
 5. EventLoop、Actor、Reactor和Java的IO模型有什么关系
+
 6. Netty中如何对应了Java的NIO模型
+
+   当然是直接使用Java的NIO呀
+
 7. Vertx的异步模型如何对应Java的NIO模型
+
 8. Java的IO演进之路和Linux的各种IO发布时间对比
 
 # 参考资料
